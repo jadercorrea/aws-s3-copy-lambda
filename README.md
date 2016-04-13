@@ -1,6 +1,6 @@
 # An AWS Lambda Function to Copy S3 Objects
 
-Lambda function to copy objects from a source S3 bucket to one or more target S3 buckets as they are added to the source bucket.
+Node.js 4.3 lambda function to copy objects from a source S3 bucket to one or more target S3 buckets as they are added to the source bucket.
 
 ## Configuration
 
