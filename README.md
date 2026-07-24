@@ -1,86 +1,79 @@
-# An AWS Lambda Function to Copy S3 Objects
+# AWS S3 Copy Lambda
 
-Node.js 4.3 lambda function to copy objects from a source S3 bucket to one or more target S3 buckets as they are added to the source bucket.
+An event-driven AWS Lambda function created to replicate newly uploaded S3 objects from one source bucket to one or more destination buckets.
 
-## Configuration
+The function was originally built in 2016, before several of the native replication and deployment workflows commonly used with AWS today.
 
-### IAM Role
+## How it worked
 
-Create an IAM role with the a policy that give access to this resources:
+The source S3 bucket emitted an `ObjectCreated` event whenever a new object was uploaded.
 
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "s3:GetBucketTagging",
-                "s3:GetObject",
-                "s3:PutObject"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "cloudwatch:*"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "logs:*"
-            ],
-            "Resource": [
-                "*"
-            ]
-        }
-    ]
-}
+The Lambda function then:
+
+1. Read the replication targets from tags configured on the source bucket
+2. Retrieved the newly created object
+3. Copied it to one or more destination buckets
+4. Supported destinations located in different AWS regions
+
+Multiple target buckets could be configured without changing the function code.
+
+## Configuration model
+
+Replication targets were defined through a `TargetBucket` tag on the source bucket.
+
+Example:
+
+```text
+TargetBucket=bucket-a bucket-b bucket-c@us-west-2
 ```
 
-If you want you can give acess to all S3 resources like this:
+A destination followed by an AWS region indicated that the target bucket was located outside the source region.
 
-```json
-...
-        {
-            "Effect": "Allow",
-            "Action": "s3:*",
-            "Resource": "*"
-        },
-...
+## Architecture
+
+```text
+S3 source bucket
+      |
+      | ObjectCreated event
+      v
+AWS Lambda
+      |
+      +--> Destination bucket A
+      +--> Destination bucket B
+      +--> Destination bucket C
 ```
 
-### S3 Buckets
+## Historical implementation
 
-1. Ensure you have a source and a target bucket. They don't need to reside in the same region.
-2. Configure your S3 buckets (see below)
+The original implementation used:
 
-### Lambda Function
+- AWS Lambda
+- Node.js 4.3
+- Amazon S3 event notifications
+- Source-bucket tags for runtime configuration
 
-1. Create a new Lambda function.
-2. Sending lambda to AWS:
- * ZIP the index.js file and node_modules (Not the folder they're in)
- * Upload the ZIP package to your lambda function.
-3. Add an event source to your Lambda function:
- * Event Source Type: S3
- * Bucket: your source bucket
- * Event Type: Object Created
-4. Set your Lambda function to execute using the IAM role you created above.
+The original deployment package and dependencies remain in the repository as part of the historical implementation.
 
-### Configuration
+## Security note
 
-Configuration is performed by setting tags on the source bucket. Access the bucket's properties, click on Tags and add:
-Key: TargetBucket
-Value: YOUR_BUCKET_NAME
+The IAM examples in the original documentation used broad permissions for simplicity.
 
-For **more than one** bucket at the same time, just separate the target names with a space.
-For a **bucket at a diferent region** you can use bucket-name@us-west-2.
+A production implementation should instead use least-privilege policies restricted to:
 
-After that when you upload a file to your source bucket, the file should be copied to the target bucket(s).
+- the specific source bucket;
+- the configured destination buckets;
+- the required CloudWatch Logs actions.
+
+Avoid granting unrestricted `s3:*`, `logs:*`, or wildcard resource access.
+
+## Status
+
+This project was created in 2016 and is no longer actively maintained.
+
+It depends on an obsolete Node.js runtime and an older version of the AWS SDK. The repository is preserved as a historical example of an event-driven serverless workflow and should not be deployed to production without modernization.
+
+For new systems, evaluate native S3 Replication or implement the workflow using a currently supported Lambda runtime, infrastructure as code, least-privilege IAM policies and automated tests.
+
+## License
+
+No explicit license was included in the original project.
